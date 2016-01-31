@@ -1,0 +1,80 @@
+---
+title: <center> Predicting Quality of Bicep Curls </center>
+output: html_document
+---
+
+<center> **Introduction** </center>
+       One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal is to use data from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants to predict whether the participants performed a bicep curl correctly or incorrectly. The model will be evaluated for performance against test sets of data. The training data originates from the paper "Qualitative Activity Recognition of Weight Lifting Exercises"" by Velloso et al., 2013. 
+
+<center> **Data Preprocessing** </center>
+        The original dataset contains around 160 variables, thus before creating a parsimonious model, the number of variables needed to be reduced. Exploration of the dataset revealed that numerous columns contained "NA" values as well as data that simply summarized other columns e.g., variance of acceleration in the x direction, so these columns were removed. In addition, the first 7 columns of the dataset did not contain information pertinent to the model such as name of the participant and date, so these were removed as well. The final dimensions of the dataset are shown below followed by the names of the variables used in the model.
+
+```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+
+library(dplyr)
+library(caret)
+
+download.file(url="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile="/Users/kevinarmengol/R Studio/Couresera R Files/Machine Learning/Assignment/training_data", method="curl")
+
+download.file(url="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile="/Users/kevinarmengol/R Studio/Couresera R Files/Machine Learning/Assignment/test_data", method="curl")
+
+training <- read.csv("training_data")
+training <- tbl_df(training)
+
+test <- read.csv("test_data")
+test <- tbl_df(test)
+test1 <- select(test, -(grep("NA", test)))
+
+training1 <- select(training, -(grep("NA", test)))
+training2 <- training[,intersect(names(test1), names(training))]
+
+training2 <- training1[,-(1:7)]
+test1 <- test1[,-(1:7)]
+
+
+dim(training2)
+names(training2)
+```
+      
+        
+<center> **Modeling** </center>
+        To predict bicep curl quality, a random forest model was trained on 60% of the data and further cross-validated with the other 40%. To reduce the computation time, cross validation was only conducted 5 times during random forest modeling. This was tweaked by using the `trainControl` argument within the`train` function which is inside the caret package.
+```{r, echo=FALSE, cache=TRUE, message=FALSE}
+
+library(caret)
+set.seed(1)
+
+inTrain <- createDataPartition(y=training2$classe, p=.6, list=FALSE)
+train_set<- training2[inTrain,]
+test_set<- training2[-inTrain,]
+
+
+modfit<- train(classe~., data=train_set,method="rf", trControl=trainControl(method="cv",number=5), prox=TRUE)
+
+modfit
+
+```
+        This random forest model has up to ~98.9% accuracy on the training set. Below, the values for the test set are predicted using the random forest model fit and compared to their actual values using a confusion matrix.
+```{r, cache=TRUE, echo=FALSE, message=FALSE}
+
+
+pred <- predict(modfit,test_set,type="raw")
+
+confusionMatrix(pred, test_set$classe)
+
+
+
+
+
+
+
+
+```
+        Accuracy is very similar on the test set partition and the out of sample error rate for this single test set is <.01%.
+
+         
+        
+<center> **Conclusion** </center>
+        Using a randomforest model with 53 predictors and 5 within-set cross-validations, an accuracy of ~98.9% was achieved on classifying the type of bicep curl performed on 60% of the data. The model was cross-validated even further by testing it on 40% of the data. It performed even better with ~99.4% accuracy.
+
+        
